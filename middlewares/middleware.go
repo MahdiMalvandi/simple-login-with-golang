@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"simple-project/ctxkeys"
+	"simple-project/keys"
 )
 
 
@@ -28,7 +28,7 @@ func (m Middleware) JsonParser(next http.Handler) http.Handler {
 			
 			// Save data to context
 
-			ctx := context.WithValue(r.Context(), ctxkeys.JSONBodyKey, data)
+			ctx := context.WithValue(r.Context(), keys.JSONBodyKey, data)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 }
