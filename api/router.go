@@ -9,6 +9,6 @@ import (
 
 func SetupRoutes(mux *http.ServeMux){
 	middleware := middlewares.Middleware{}
-	mux.Handle("/", middleware.JsonParser(&user.UserRouter{DB: configs.DB}))
+	mux.Handle("/auth/", middleware.JsonParser(&user.UserRouter{DB: configs.DB, Prefix:"/auth/"}))
 	
 }

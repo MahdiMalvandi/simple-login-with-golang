@@ -2,7 +2,7 @@ package user
 
 import (
 	"database/sql"
-
+	"encoding/json"
 	"net/http"
 	"simple-project/utils"
 	"strings"
@@ -14,8 +14,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	// search for this user
 	var user User
-	query := "SELECT username, password FROM users WHERE username = ?"
-	err := db.QueryRow(query, data["username"].(string)).Scan(&user.Username, &user.Password)
+	query := "SELECT id, username, password FROM users WHERE username = ?"
+	err := db.QueryRow(query, data["username"].(string)).Scan(&user.Id, &user.Username, &user.Password)
 
 	// check username or password
 	if err != nil {
@@ -30,7 +30,11 @@ func LoginHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Login Successfully"))
+	res, err := utils.CreateJwt(user.Id, user.Username)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	w.Write([]byte(res))
 
 }
 
@@ -55,4 +59,17 @@ func SignUpHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("User created successfully"))
+}
+
+
+func CheckJwtToken(w http.ResponseWriter, r *http.Request, db *sql.DB){
+	data := utils.GetJson(r)
+	res, err := utils.VerifyJwt(data["token"].(string))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+	jsonData , _ := json.Marshal(map[string]bool{"status":res})
+	w.Write([]byte(jsonData))
 }
