@@ -15,8 +15,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, logger *ut
 
 	// search for this user
 	var user User
-	query := "SELECT id, username, password FROM users WHERE username = ?"
-	err := db.QueryRow(query, data["username"].(string)).Scan(&user.Id, &user.Username, &user.Password)
+	err := user.Search(db, data["username"].(string))
 
 	// check username or password
 	if err != nil {
@@ -59,19 +58,23 @@ func SignUpHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, logger *u
 	}
 
 	// create user to db
-	_, Eerr := db.Exec("INSERT INTO users (first_name, last_name, username, password) values (?,?,?,?)", data["first_name"], data["last_name"], data["username"], hashedPassword)
+	user := User{FirstName: data["first_name"].(string), LastName: data["last_name"].(string), Username: data["username"].(string), Password: hashedPassword}
+	Eerr := user.CreateUser(db)
 	if Eerr != nil {
-		if strings.Contains(Eerr.Error(), "UNIQUE constraint failed") {
-			logger.Log(fmt.Sprintf("ERROR:User-Handlers:SignUpHandler->User already exists for username: '%s'", data["username"]))
-
-			http.Error(w, "User already exists", http.StatusBadRequest)
-			return
-		}
+		logger.Log(fmt.Sprintf("ERROR:User-Handlers:SignUpHandler->%s for username: '%s'", Eerr.Error(), data["username"]))
+		http.Error(w, Eerr.Error(), http.StatusBadRequest)
+		return
 	}
 	logger.Log(fmt.Sprintf("INFO:User-Handlers:SignUpHandler->User created successfully for username: '%s'", data["username"]))
 
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("User created successfully"))
+	// creating jwt for user
+	res, err := utils.CreateJwt(user.Id, user.Username)
+	if err != nil {
+		logger.Log(fmt.Sprintf("ERROR:User-Handlers:SignUpHandler->Error in create jwt for username: '%s'", data["username"]))
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	logger.Log(fmt.Sprintf("INFO:User-Handlers:SignUpHandler->User's Jwt was created for username: '%s'", data["username"]))
+	w.Write([]byte(res))
 }
 
 func CheckJwtToken(w http.ResponseWriter, r *http.Request, db *sql.DB, logger *utils.Logger) {
@@ -88,4 +91,49 @@ func CheckJwtToken(w http.ResponseWriter, r *http.Request, db *sql.DB, logger *u
 
 	jsonData, _ := json.Marshal(map[string]bool{"status": res})
 	w.Write([]byte(jsonData))
+}
+
+func GetListOfUsers(w http.ResponseWriter, r *http.Request, db *sql.DB, logger *utils.Logger) {
+	var u User
+	users, err := u.GetAll(db)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	usersJson, err := json.Marshal(users)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(usersJson)
+
+}
+
+
+func GetUserByField(w http.ResponseWriter, r *http.Request, db *sql.DB, logger *utils.Logger) {
+	data := r.URL.Query().Get("data")
+	field := r.URL.Query().Get("field")
+
+	if  field == "" || data == ""{
+		http.Error(w, "You Must Send field and data by query parameters", http.StatusBadRequest)
+	}
+
+	var u User
+	user, err := u.GetUserByField(db, field, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	userJson, err := json.Marshal(user)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(userJson)
+
 }

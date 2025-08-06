@@ -23,19 +23,42 @@ func (u *UserRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			LoginHandler(w, r, u.DB, u.Logger)
 			return
 		}
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
 
 	case "sign-up":
 		if r.Method == http.MethodPost {
 			SignUpHandler(w, r, u.DB, u.Logger)
 			return
 		}
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
 
 	case "check-token":
 		if r.Method == http.MethodPost {
 			CheckJwtToken(w, r, u.DB, u.Logger)
 			return
 		}
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+
+	case "users":
+		if r.Method == http.MethodGet {
+			GetListOfUsers(w, r, u.DB, u.Logger)
+			return
+		}
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+
+	case "get-user":
+				if r.Method == http.MethodGet {
+			GetUserByField(w, r, u.DB, u.Logger)
+			return
+		}
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
 	default:
+
 		http.NotFound(w, r)
 		return
 	}
